@@ -32,7 +32,7 @@ You will find the following CSV files in your GitHub repo:
 |                                             |                                          |                   |
 |                                             | -   `total_energy_use_2023.csv`          |                   |
 +---------------------------------------------+------------------------------------------+-------------------+
-| EV Registrations by State                   | -   `ev-registrations-by_state_2023.csv` | 2023              |
+| EV Registrations by State                   | -   `en` | 2023              |
 +---------------------------------------------+------------------------------------------+-------------------+
 
 ### **Part 1: Defining Research Questions**

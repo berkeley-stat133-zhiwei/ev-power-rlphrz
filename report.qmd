@@ -3,32 +3,211 @@ title: "EV Power - Lab 4 Project Report"
 format: typst
 ---
 
-# Example Solution 1
-
 ## **Part 0: libraries**
 
 ```{r}
+library(tidyverse)
 
+renew_use_2021 <- read_csv("data/renew-use-2021.csv")
+renew_use_2022 <- read_csv("data/renew-use-2022.csv")
+renew_use_2023 <- read_csv("data/renew-use-2023.csv")
+
+mean_price <- read_csv("data/av-energy-price-2021-2023.csv")
+
+total_energy_use_2021 <- read_csv("data/total-use-2021.csv")
+total_energy_use_2022 <- read_csv("data/total-use-2022.csv")
+total_energy_use_2023 <- read_csv("data/total-use-2023.csv")
+
+ev_registrations_2023 <- read_csv("data/ev-registrations-by-state-2023.csv")
 ```
 
 ## **Part 1:** **Defining Research Question**
 
-Chosen Question:
+Chosen Question: Which states showed the greatest percentage increase in renewable energy use between 2021 and 2023?
 
 ## **Part 2: Data Preparation and Cleaning**
 
 ```{r}
+state_codes <- data.frame(
+  state_name = state.name,
+  state_code = state.abb
+) |>
+  bind_rows(data.frame(state_name = "District of Columbia", state_code = "DC"))
 
+ev_registrations_2023_clean <- read_csv(
+    "data/ev-registrations-by-state-2023.csv", 
+    skip = 2, # random gap in row 2
+    show_col_types = FALSE
+  ) |>
+  rename(
+    state_name = STATE,
+    ev_registrations_raw = `Count-EVs`
+  ) |>
+  mutate(
+    ev_registrations = str_replace_all(ev_registrations_raw, "[^0-9]", ""), # only keeping digits
+    ev_registrations = as.numeric(ev_registrations) # making sure they are actually numbers
+  ) |>
+  left_join(state_codes, by = "state_name") |>
+  select(state_code, ev_registrations) |>
+  drop_na(state_code) # gets rid of the row "total"
+
+# print(head(ev_registrations_2023_clean))
+```
+
+```{r}
+total_energy_use_2023_clean <- read_csv(
+    "data/total-use-2023.csv",
+    show_col_types = FALSE
+  ) |>
+  pivot_longer(
+    cols = -Energy_Source,
+    names_to = "state_code",
+    values_to = "energy_value"
+  ) |>
+  rename(
+    energy_source = Energy_Source
+  ) |>
+  filter(state_code != "US")
+
+print(head(total_energy_use_2023_clean))
+
+
+total_energy_use_2022_clean <- read_csv(
+    "data/total-use-2022.csv",
+    show_col_types = FALSE
+  ) |>
+  pivot_longer(
+    cols = -Energy_Source,
+    names_to = "state_code",
+    values_to = "energy_value"
+  ) |>
+  rename(
+    energy_source = Energy_Source
+  ) |>
+  filter(state_code != "US")
+
+print(head(total_energy_use_2022_clean))
+
+
+total_energy_use_2021_clean <- read_csv(
+    "data/total-use-2021.csv",
+    show_col_types = FALSE
+  ) |>
+  pivot_longer(
+    cols = -Energy_Source,
+    names_to = "state_code",
+    values_to = "energy_value"
+  ) |>
+  rename(
+    energy_source = Energy_Source
+  ) |>
+  filter(state_code != "US")
+
+print(head(total_energy_use_2021_clean))
+```
+
+```{r}
+renew_use_2021_clean <- renew_use_2021 |>
+  rename(state_code = State, renewable_use_value = Renewable_Use_2021, energy_source = Energy_Source) |>
+  mutate(renewable_use_value = as.numeric(gsub("[^0-9]", "", renewable_use_value)),
+         year = 2021) |>
+  left_join(state_codes, by = "state_code") |>
+  select(state_code, energy_source, year, renewable_use_value) |>
+  print(head(renew_use_2021_clean))
+
+renew_use_2022_clean <- renew_use_2022 |>
+  rename(state_code = State, renewable_use_value = Renewable_Use_2022, energy_source = Energy_Source) |>
+  mutate(renewable_use_value = as.numeric(gsub("[^0-9]", "", renewable_use_value)),
+         year = 2022) |>
+  left_join(state_codes, by = "state_code") |>
+  select(state_code, energy_source, year, renewable_use_value) |>
+  print(head(renew_use_2022_clean))
+
+renew_use_2023_clean <- renew_use_2023 |>
+  rename(state_code = State, renewable_use_value = Renewable_Use_2023, energy_source = Energy_Source) |>
+  mutate(renewable_use_value = as.numeric(gsub("[^0-9]", "", renewable_use_value)),
+         year = 2023) |>
+  left_join(state_codes, by = "state_code") |>
+  select(state_code, energy_source, year, renewable_use_value) |>
+  print(head(renew_use_2023_clean))
+```
+
+```{r}
+mean_price_clean <- read_delim(
+    "data/av-energy-price-2021-2023.csv", 
+    delim = ",",
+    skip = 3,
+    col_names = c("State", "2021", "2022", "2023"),
+    quote = "", # idk what this does tbh
+    show_col_types = FALSE
+  ) |>
+  mutate(State = str_remove_all(State, '"')) |> # also dont really know what this does
+  pivot_longer(
+    cols = c(`2021`, `2022`, `2023`),
+    names_to = "year_raw",
+    values_to = "average_price_raw"
+  ) |>
+  rename(
+    state_code = State
+  ) |>
+  mutate(
+    average_price_clean = str_replace_all(average_price_raw, "[^0-9.]", ""),
+    average_price = as.numeric(average_price_clean),
+    year = as.integer(year_raw)
+  ) |>
+  select(state_code, year, average_price) |>
+  drop_na(state_code)
+
+print(head(mean_price_clean))
 ```
 
 ## **Part 3: Joining / Pivoting Datasets for Analysis**
 
 ```{r}
+renew_use_combined <- bind_rows(
+  renew_use_2021_clean,
+  renew_use_2022_clean,
+  renew_use_2023_clean
+)
 
+total_renewable_use <- renew_use_combined |>
+  group_by(state_code, year) |>
+  summarize(
+    total_renewable_use = sum(renewable_use_value, na.rm = TRUE),
+    .groups = 'drop'
+  )
+
+total_renewable_use_pivoted <- total_renewable_use |>
+  pivot_wider(
+    names_from = year,
+    values_from = total_renewable_use,
+    names_prefix = "renew_use_" # idk but this was a recommendation from Gemini
+  )
+
+additional_data <- total_renewable_use_pivoted |>
+  drop_na(renew_use_2021, renew_use_2023) |>
+  mutate(
+    percent_increase = (
+      (renew_use_2023 - renew_use_2021) / renew_use_2021
+    ) * 100
+  ) |>
+  select(
+    state_code,
+    renew_use_2021,
+    renew_use_2022,
+    renew_use_2023,
+    percent_increase
+  )
+
+print(head(additional_data))
+```
+
+```{r}
+#couldnt join the other one
 ```
 
 ## **Part 4: Mapping Visualization**
 
 ```{r}
-
+# didn't get to this
 ```
